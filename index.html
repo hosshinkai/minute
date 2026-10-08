@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Minute</title>
+<meta name="theme-color" content="#1d6b58">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Minute">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="9" fill="var(--accent)"/><path d="M12.5 22.5c0 2 1.6 3 3.2 3 2.4 0 3-2 3.6-3.6.6-1.6 3.2-3.4 3.2-6.9 0-3.9-3-6.5-6.5-6.5S9.5 11.1 9.5 15" fill="none" stroke="var(--accent-ink)" stroke-width="2" stroke-linecap="round"/><path d="M13.3 15.2c0-1.6 1.2-2.9 2.8-2.9s2.8 1.3 2.8 2.9c0 1.4-1.1 2-1.8 2.6" fill="none" stroke="var(--accent-ink)" stroke-width="2" stroke-linecap="round"/></svg>
+    <div class="brand"><h1>Minute</h1></div>
+    <span class="pill" id="syncPill"><i></i><span>この端末のみ</span></span>
+    <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </header>
+
+  <div class="layout" id="layout">
+    <section class="left">
+      <div class="panel">
+        <div class="rec" id="rec">
+          <div class="seg" role="group" aria-label="種類" id="recType">
+            <button type="button" data-type="oneonone" aria-pressed="true">面談</button>
+            <button type="button" data-type="interview" aria-pressed="false">面接</button>
+            <button type="button" data-type="meeting" aria-pressed="false">打合せ</button>
+            <button type="button" data-type="gathering" aria-pressed="false">寄合</button>
+          </div>
+          <div class="time" id="recTime">00:00:00</div>
+          <div class="state" id="recState"><i></i><span>録音を始めるにはボタンを押してください</span></div>
+          <canvas class="level" id="level" width="720" height="112" aria-hidden="true"></canvas>
+          <button class="recbtn" id="recBtn" type="button" aria-label="録音開始"><span></span></button>
+          <div class="rec-ctrl" id="recCtrl" hidden>
+            <button class="btn" id="pauseBtn" type="button">一時停止</button>
+            <button class="btn" id="markBtn" type="button">★ しおり</button>
+          </div>
+          <div class="marks" id="marks"></div>
+          <p class="hint" id="recHint">録音中は画面を開いたままにしてください。スマホで別のアプリに切り替えると録音が止まることがあります。</p>
+        </div>
+      </div>
+
+      <label class="import" id="importZone" style="margin-top:12px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
+        <span><b>音声ファイルを取り込む</b><span class="hint">ボイスレコーダーやスマホの録音（mp3・m4a・wav など）をここへドラッグ、またはタップして選択</span></span>
+        <input type="file" id="importFile" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.webm" multiple hidden>
+      </label>
+
+      <div class="list-head"><p class="eyebrow">記録</p><button class="btn small ghost" id="refreshBtn" type="button">更新</button></div>
+      <ul class="list" id="list"></ul>
+    </section>
+
+    <section class="right" id="detail"></section>
+  </div>
+</div>
+
+<dialog id="settings">
+  <form method="dialog" class="pad" id="settingsForm">
+    <h2>設定</h2>
+    <div class="stack">
+      <p class="eyebrow">Googleドライブ連携</p>
+      <div class="field"><label for="sUrl">連携用URL（Apps Script のウェブアプリURL）</label><input id="sUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></div>
+      <div class="field"><label for="sKey">合言葉</label><input id="sKey" type="password" autocomplete="off"></div>
+      <div class="row"><button class="btn" type="button" id="sTest">接続を確認</button><span class="hint" id="sTestOut"></span></div>
+      <div class="row"><button class="btn ghost small" type="button" id="sLink">他の端末用のセットアップリンクをコピー</button></div>
+      <p class="hint">セットアップリンクには合言葉が含まれます。ご自身の端末にだけ送ってください（例：自分宛のメール、メモアプリ）。</p>
+    </div>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" value="cancel" type="submit">閉じる</button><button class="btn primary" type="button" id="sSave">保存</button></div>
+  </form>
+</dialog>
+
+
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
