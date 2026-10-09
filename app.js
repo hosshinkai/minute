@@ -174,11 +174,47 @@ const elapsed = () => rec.acc + (rec.paused || !rec.startedAt ? 0 : (performance
 async function wake() { try { rec.wake = await navigator.wakeLock?.request("screen"); } catch {} }
 document.addEventListener("visibilitychange", () => { if (rec.mr && document.visibilityState === "visible") wake(); });
 
-async function startRec() {
-  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { toast("このブラウザは録音に対応していません"); return; }
+const canCaptureMeeting = () => !!navigator.mediaDevices?.getDisplayMedia && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// Web meeting: the meeting's sound (shared tab/screen audio) mixed with this PC's microphone
+async function meetingStream() {
+  let display;
   try {
-    rec.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-  } catch { toast("マイクを使えません。ブラウザでマイクの使用を許可してください"); return; }
+    display = await navigator.mediaDevices.getDisplayMedia({
+      video: true, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      systemAudio: "include", selfBrowserSurface: "exclude", surfaceSwitching: "include",
+    });
+  } catch { toast("画面の共有が取り消されました"); return null; }
+  if (!display.getAudioTracks().length) {
+    display.getTracks().forEach(t => t.stop());
+    toast("会議の音声が共有されていません。共有の画面で「音声も共有する」をオンにしてください");
+    return null;
+  }
+  let mic = null;
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  catch { toast("マイクを使えないため、相手側の音声だけを録音します"); }
+  const ctx = new AudioContext(), dest = ctx.createMediaStreamDestination();
+  ctx.createMediaStreamSource(new MediaStream(display.getAudioTracks())).connect(dest);
+  if (mic) ctx.createMediaStreamSource(mic).connect(dest);
+  // stop recording when the person ends screen sharing
+  display.getTracks().forEach(t => t.addEventListener("ended", () => stopRec()));
+  rec.extra = [display, mic].filter(Boolean);
+  rec.mixCtx = ctx;
+  return dest.stream;
+}
+
+async function startRec(mode) {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { toast("このブラウザは録音に対応していません"); return; }
+  rec.mode = mode === "meeting" ? "meeting" : "mic";
+  rec.extra = []; rec.mixCtx = null;
+  if (rec.mode === "meeting") {
+    rec.stream = await meetingStream();
+    if (!rec.stream) return;
+  } else {
+    try {
+      rec.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch { toast("マイクを使えません。ブラウザでマイクの使用を許可してください"); return; }
+  }
   const mime = pickMime();
   rec.mr = new MediaRecorder(rec.stream, mime ? { mimeType: mime, audioBitsPerSecond: 48000 } : undefined);
   rec.id = uid(); rec.chunks = []; rec.n = 0; rec.acc = 0; rec.marks = []; rec.paused = false;
@@ -206,17 +242,19 @@ function pauseRec() {
   recUI();
 }
 function markRec() { if (!rec.mr) return; rec.marks.push(elapsed()); recUI(); toast("しおりを付けました（" + hms(elapsed()) + "）"); }
-function stopRec() { if (!rec.mr) return; rec.acc = elapsed(); rec.paused = true; rec.mr.stop(); }
+function stopRec() { if (!rec.mr || rec.mr.state === "inactive") return; rec.acc = elapsed(); rec.paused = true; rec.mr.stop(); }
 
 async function finishRec() {
   cancelAnimationFrame(rec.raf);
   rec.stream?.getTracks().forEach(t => t.stop());
+  (rec.extra || []).forEach(s => s.getTracks().forEach(t => t.stop()));
   try { rec.ctx?.close(); } catch {}
+  try { rec.mixCtx?.close(); } catch {}
   try { rec.wake?.release(); } catch {}
   const type = rec.mr?.mimeType || pickMime() || "audio/webm";
   const blob = new Blob(rec.chunks, { type });
   const r = {
-    id: rec.id, title: `${TYPES[rec.type]} ${today().slice(5).replace("-", "/")} ${new Date().toTimeString().slice(0, 5)}`,
+    id: rec.id, title: `${rec.mode === "meeting" ? "Web会議・" : ""}${TYPES[rec.type]} ${today().slice(5).replace("-", "/")} ${new Date().toTimeString().slice(0, 5)}`,
     type: rec.type, date: today(), participants: "", createdAt: Date.now(), duration: rec.acc,
     audioMime: type, audioSize: blob.size, hasAudio: true, transcript: "", status: "recorded", bookmarks: rec.marks.slice(),
   };
@@ -277,9 +315,15 @@ function recUI() {
   box.classList.toggle("on", on && !rec.paused);
   box.classList.toggle("paused", on && rec.paused);
   $("#recCtrl").hidden = !on;
+  $("#meetBtn").hidden = on || !canCaptureMeeting();
+  $("#recHint").textContent = on && rec.mode === "meeting"
+    ? "会議が終わったら停止ボタンを押してください。画面の共有を止めても録音は終わります。"
+    : canCaptureMeeting()
+      ? "ウェブ会議は「ウェブ会議を録音」から。共有する画面で、Meetなら会議のタブ、Zoom・Teamsのアプリなら「画面全体」を選び、「音声も共有する」をオンにしてください。録音は相手の同意を得てから行ってください。"
+      : "録音中は画面を開いたままにしてください。スマホで別のアプリに切り替えると録音が止まることがあります。";
   $("#recBtn").setAttribute("aria-label", on ? "録音を終了" : "録音開始");
   $("#pauseBtn").textContent = rec.paused ? "再開" : "一時停止";
-  $("#recState span").textContent = !on ? "録音を始めるにはボタンを押してください" : rec.paused ? "一時停止中" : "録音中";
+  $("#recState span").textContent = !on ? "録音を始めるにはボタンを押してください" : rec.paused ? "一時停止中" : rec.mode === "meeting" ? "Web会議を録音中（会議の音声＋マイク）" : "録音中";
   $("#marks").textContent = rec.marks.length ? "★ " + rec.marks.map(hms).join("　★ ") : "";
   document.querySelectorAll("#recType button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.type === rec.type)); b.disabled = on; });
   if (!on) { $("#recTime").textContent = "00:00:00"; levels.length = 0; tick(); }
@@ -474,7 +518,8 @@ $("#sLink").onclick = async () => {
 };
 
 /* ---------------- wiring ---------------- */
-$("#recBtn").onclick = () => rec.mr ? stopRec() : startRec();
+$("#recBtn").onclick = () => rec.mr ? stopRec() : startRec("mic");
+$("#meetBtn").onclick = () => { if (!rec.mr) startRec("meeting"); };
 $("#pauseBtn").onclick = pauseRec;
 $("#markBtn").onclick = markRec;
 document.querySelectorAll("#recType button").forEach(b => b.onclick = () => { rec.type = b.dataset.type; cfg.lastType = rec.type; saveCfg(); recUI(); });

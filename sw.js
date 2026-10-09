@@ -1,5 +1,5 @@
 // Keeps the app itself available offline. Models, fonts and Drive requests are not handled here.
-const CACHE = "minute-v2";
+const CACHE = "minute-v3";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "icon-180.png"];
 
 self.addEventListener("install", (e) => {

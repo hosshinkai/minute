@@ -66,6 +66,8 @@ a{color:var(--accent)}
 @keyframes pulse{50%{opacity:.25}}
 .level{width:100%;height:56px;display:block}
 .recbtn{width:84px;height:84px;border-radius:50%;border:6px solid var(--rec-soft);background:var(--rec);cursor:pointer;display:grid;place-items:center;transition:transform .15s;box-shadow:0 6px 18px rgba(207,68,38,.28)}
+.btn.meet{margin-top:2px;color:var(--accent);border-color:var(--accent);background:var(--surface)}
+.btn.meet svg{width:18px;height:18px}
 .recbtn:active{transform:scale(.96)}
 .recbtn span{width:30px;height:30px;border-radius:50%;background:#fff;transition:border-radius .2s,width .2s,height .2s}
 .rec.on .recbtn span,.rec.paused .recbtn span{width:26px;height:26px;border-radius:6px}
